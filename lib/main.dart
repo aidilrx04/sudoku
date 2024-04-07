@@ -46,19 +46,38 @@ class MainApp extends StatelessWidget {
   }
 }
 
-class Sudoku extends StatefulWidget {
-  Sudoku({
-    super.key,
-  }) {}
+class SudokuGame extends StatefulWidget {
+  SudokuGame({super.key}) {}
 
   @override
-  State<Sudoku> createState() => _SudokuState();
+  State<SudokuGame> createState() => _SudokuGameState();
 }
 
-class _SudokuState extends State<Sudoku> {
+class _SudokuGameState extends State<SudokuGame> {
   late List<List<int>> grid = SudokuGenerator().generateSudoku();
   late List<List<int>> holedGrid =
       _generateHoledGrid(grid, (9 * 9 * .3).toInt());
+  late List<List<Cell>> cells = _generateCells();
+  late Map<num, num> remainings = _getRemainings();
+
+  Map<num, num> _getRemainings() {
+    var r = <num, num>{};
+
+    // check for all 0 in holedGrid
+    for (var i = 0; i < holedGrid.length; i++) {
+      for (var j = 0; j < holedGrid[i].length; j++) {
+        if (holedGrid[i][j] == 0) {
+          var value = grid[i][j];
+          if (r.containsKey(value)) {
+            r[value] = (r[value]! + 1);
+          } else {
+            r[value] = 1;
+          }
+        }
+      }
+    }
+    return r;
+  }
 
   // _SudokuState() {
   //   grid = SudokuGenerator().generateSudoku();
@@ -134,6 +153,7 @@ class _SudokuState extends State<Sudoku> {
                     holedGrid = _generateHoledGrid(grid, (9 * 9 * .3).toInt());
                     this.row = null;
                     this.col = null;
+                    remainings = _getRemainings();
                   });
                   Navigator.of(context).pop();
                 },
@@ -157,6 +177,15 @@ class _SudokuState extends State<Sudoku> {
           // answer is correct
           setState(() {
             holedGrid[row as int][col as int] = number;
+            Cell shownCell = Cell(
+              value: grid[row as int][col as int],
+              isUserInput: true,
+            );
+            shownCell.show = true;
+            cells[row as int][col as int] = shownCell;
+            if (remainings[number] != null) {
+              remainings[number] = remainings[number]! - 1;
+            }
             print('Correct!');
             row = null;
             col = null;
@@ -192,62 +221,164 @@ class _SudokuState extends State<Sudoku> {
     _context = context;
     return Column(
       children: [
-        Column(
-          children: [
-            for (var row = 0; row < grid.length; row++)
-              Center(
-                child: Row(
+        Expanded(
+          child: LayoutBuilder(builder: (context, constraints) {
+            var maxWidth = constraints.maxWidth;
+            var maxHeight = constraints.maxHeight;
+
+            var cellSize = min(maxWidth, maxHeight) / 9;
+
+            return SizedBox(
+              width: cellSize * 9,
+              height: cellSize * 9,
+              child: Column(
+                children: [
+                  for (var row = 0; row < grid.length; row++)
+                    Center(
+                      child: Row(
+                        children: [
+                          for (var col = 0; col < grid[0].length; col++)
+                            GestureDetector(
+                              onTap: handleOnTap(row, col),
+                              child: Container(
+                                // padding: EdgeInsets.all(20.0),
+                                width: cellSize,
+                                height: cellSize,
+                                alignment: Alignment.center,
+                                // color: this.row == row && this.col == col
+                                //     ? Colors.blue
+                                //     : Colors.transparent,
+                                decoration: BoxDecoration(
+                                  color: this.row == row && this.col == col
+                                      ? Colors.blue
+                                      : Colors.transparent,
+                                  border: handleDisplayBorder(row, col, 3),
+                                ),
+                                child: cells[row][col],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+        ),
+        Container(
+          height: 100,
+          padding: const EdgeInsets.only(top: 12),
+          child: Column(
+            children: [
+              LayoutBuilder(builder: (context, constraints) {
+                var maxWidth = constraints.maxWidth;
+                var maxHeight = constraints.maxHeight;
+
+                var size = min(maxWidth, maxHeight) / 9;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    for (var col = 0; col < grid[0].length; col++)
-                      GestureDetector(
-                        onTap: handleOnTap(row, col),
-                        child: Container(
-                          padding: EdgeInsets.all(20.0),
-                          // color: this.row == row && this.col == col
-                          //     ? Colors.blue
-                          //     : Colors.transparent,
-                          decoration: BoxDecoration(
-                            color: this.row == row && this.col == col
-                                ? Colors.blue
-                                : Colors.transparent,
-                            border: Border.all(
-                                color: Colors.black,
-                                style: BorderStyle.solid,
-                                width: 1),
-                          ),
-                          child: Text(holedGrid[row][col].toString(),
-                              style: TextStyle(
-                                color: holedGrid[row][col] == 0
-                                    ? Colors.transparent
-                                    : Colors.black87,
-                              )),
-                        ),
+                    for (var i in List.generate(9, (index) => index + 1))
+                      Container(
+                        width: size,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: remainings[i] != null && remainings[i]! > 0
+                            ? Column(
+                                children: [
+                                  ElevatedButton(
+                                    onPressed: handleAnswerTap(i),
+                                    style: ButtonStyle(
+                                        alignment: Alignment.center,
+                                        // reset padding to avoid misalignment of text content
+                                        padding:
+                                            MaterialStateProperty.resolveWith(
+                                                (states) =>
+                                                    const EdgeInsets.all(0)),
+                                        backgroundColor:
+                                            MaterialStateColor.resolveWith(
+                                                (states) => Colors.white),
+                                        side: MaterialStateProperty.resolveWith(
+                                            (states) => const BorderSide(
+                                                color: Colors.black26,
+                                                width: 1))),
+                                    child: Text(
+                                      i.toString(),
+                                      style: const TextStyle(
+                                          color: Colors.black, fontSize: 18),
+                                    ),
+                                  ),
+                                  Center(
+                                    child: Text(
+                                      remainings[i].toString(),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : null,
                       ),
                   ],
-                ),
-              ),
-          ],
-        ),
-        Row(
-          children: [
-            for (var i in List.generate(9, (index) => index + 1))
-              ElevatedButton(
-                onPressed: handleAnswerTap(i),
-                style: ButtonStyle(
-                  backgroundColor:
-                      MaterialStateColor.resolveWith((states) => Colors.blue),
-                ),
-                child: Text(
-                  i.toString(),
-                  style: const TextStyle(
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-          ],
+                );
+              }),
+            ],
+          ),
         ),
       ],
     );
+  }
+
+  Border handleDisplayBorder(int row, int col, int gsize) {
+    var baseSide = const BorderSide(
+      color: Colors.black54,
+      style: BorderStyle.solid,
+      width: 1,
+    );
+    BorderSide top, left, bottom, right;
+    const double maxBorderWidth = 2;
+    var targetBorder = baseSide.copyWith(width: maxBorderWidth);
+
+    var gx = col ~/ gsize;
+    var gy = row ~/ gsize;
+    var rx = col % gsize;
+    var ry = row % gsize;
+
+    // check if border is at edge of group
+
+    // check if cell is at left edge of group
+    if (rx == 0) {
+      left = targetBorder;
+    } else {
+      left = baseSide;
+    }
+
+    // check if cell is at right of the group
+    if (rx == gsize - 1) {
+      right = targetBorder;
+    } else {
+      right = baseSide;
+    }
+
+    // check if cell is at top
+    if (ry == 0) {
+      top = targetBorder;
+    } else {
+      top = baseSide;
+    }
+
+    // check if cell is bottom
+    if (ry == gsize - 1) {
+      bottom = targetBorder;
+    } else {
+      bottom = baseSide;
+    }
+
+    var border = Border(top: top, left: left, right: right, bottom: bottom);
+
+    return border;
   }
 
   int? row;
@@ -263,18 +394,43 @@ class _SudokuState extends State<Sudoku> {
       print("Row $row, Col: $col");
     };
   }
+
+  List<List<Cell>> _generateCells() {
+    var cells = List.generate(
+        9,
+        (row) => List.generate(
+            9,
+            (col) => Cell(
+                value: holedGrid[row][col],
+                isUserInput: holedGrid[row][col] == 0)));
+
+    return cells;
+  }
 }
 
 class Cell extends StatelessWidget {
-  const Cell({super.key, required this.value, required this.isUserInput});
+  Cell({super.key, required this.value, required this.isUserInput});
 
   final int value;
   final bool isUserInput;
+  bool show = false;
 
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
-    return Text(value.toString());
+    return Text(
+      value.toString(),
+      style: TextStyle(
+        color: !isUserInput
+            ? Colors.black87
+            : show
+                ? Colors.blue
+                : Colors.transparent,
+        fontWeight: isUserInput ? FontWeight.normal : FontWeight.bold,
+        fontSize: 18,
+        // color: holedGrid[row][col] == 0 ? Colors.transparent : Colors.black87,
+      ),
+    );
+    ;
   }
 }
 
