@@ -34,7 +34,9 @@ class MainApp extends StatelessWidget {
                 const SizedBox(
                   height: 20,
                 ),
-                Sudoku(),
+                Expanded(
+                  child: SudokuGame(),
+                ),
               ],
             ),
           ),
