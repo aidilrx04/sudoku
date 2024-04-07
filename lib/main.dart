@@ -232,6 +232,7 @@ class _SudokuGameState extends State<SudokuGame> {
               width: cellSize * 9,
               height: cellSize * 9,
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   for (var row = 0; row < grid.length; row++)
                     Center(
