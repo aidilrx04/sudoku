@@ -151,6 +151,7 @@ class _SudokuGameState extends State<SudokuGame> {
                   setState(() {
                     grid = SudokuGenerator().generateSudoku();
                     holedGrid = _generateHoledGrid(grid, (9 * 9 * .3).toInt());
+                    cells = _generateCells();
                     this.row = null;
                     this.col = null;
                     remainings = _getRemainings();
